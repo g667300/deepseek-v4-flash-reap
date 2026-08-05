@@ -63,6 +63,21 @@ Measured on a desktop (RTX 4090). **A DGX Spark should be able to run the
 pipeline itself as well, but that was not tried here** — it was only ever used
 to serve the result.
 
+**ECC memory is worth having for this.** Checking the 82.4 GB of output against
+the SHA256 sums it was published under produced a different wrong hash on each
+full sweep — one file out of 48, then two others, while the file that failed
+first now passed. Re-reading any single file always returned the correct value.
+That is roughly one bad read per 30 GB, with nothing in the kernel log: no MCE,
+no EDAC, no NVMe error. This was non-ECC desktop memory under pressure, on a
+machine that had already frozen twice that day.
+
+It matters because of where the flip could land. A bit flipped while the surgery
+pass rewrites the shards is written into the checkpoint, and no comparison
+between your copy and the published one will find it — both sides come from the
+same bytes. On non-ECC memory, verify the output against the **source**: REAP
+leaves surviving experts untouched, so their bytes must match the original
+checkpoint exactly.
+
 Serving is a separate matter: that host has to hold the 82.4 GB checkpoint in
 memory. Where these numbers come from, and what each stage needs
 on its own, is in [Reference environment](#reference-environment).
