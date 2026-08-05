@@ -8,7 +8,9 @@
 #
 # Environment (all optional):
 #   NAME           container name          (default: basename of the remote dir)
-#   IMAGE          vLLM image              (default: vllm-dsv4:fi0614)
+#   IMAGE          vLLM image              (default: vllm-dsv4:fi0614 -- the
+#                  name used here; build your own from the Dockerfile in the
+#                  model card and pass its tag)
 #   PORT           host port               (default: 8000)
 #   MAXLEN         --max-model-len         (default: 65536)
 #   MAXSEQS        --max-num-seqs          (default: 16)

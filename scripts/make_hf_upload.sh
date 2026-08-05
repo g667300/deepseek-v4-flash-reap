@@ -136,7 +136,8 @@ Sized for a 128 GB unified-memory host: ${TOTAL_GB} GB resident leaves room to
 serve, which the original does not. Measured on a DGX Spark (GB10, 121 GiB
 usable). Load takes about five minutes.
 
-The image is stock vLLM with one package moved forward:
+The image is stock vLLM with one package moved forward. Save this as
+\`Dockerfile\`:
 
 \`\`\`dockerfile
 FROM vllm/vllm-openai:v0.25.1
@@ -144,12 +145,16 @@ RUN pip install --no-cache-dir flashinfer-python==0.6.14
 ENV FLASHINFER_DISABLE_VERSION_CHECK=1
 \`\`\`
 
+\`v0.25.1\` was \`latest\` when this was built (same image id), and is pinned here
+so the recipe keeps meaning what it said. A newer vLLM may well carry a
+FlashInfer new enough to drop the last two lines.
+
 \`\`\`bash
-docker build -t vllm-dsv4:fi0614 .
+docker build -t vllm-dsv4 .
 
 docker run -d --name dsv4-reap --gpus all --ipc=host -p 8000:8000 \\
     -v /path/to/$(basename "${DST%/}"):/model:ro \\
-    --entrypoint vllm vllm-dsv4:fi0614 serve /model \\
+    --entrypoint vllm vllm-dsv4 serve /model \\
     --served-model-name dsv4-reap \\
     --gpu-memory-utilization 0.75 \\
     --max-model-len 65536 --max-num-seqs 16 \\
