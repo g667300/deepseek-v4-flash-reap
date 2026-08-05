@@ -136,17 +136,6 @@ Sized for a 128 GB unified-memory host: ${TOTAL_GB} GB resident leaves room to
 serve, which the original does not. Measured on a DGX Spark (GB10, 121 GiB
 usable). Load takes about five minutes.
 
-\`\`\`bash
-docker run -d --name dsv4-reap --gpus all --ipc=host \\
-    -e FLASHINFER_DISABLE_VERSION_CHECK=1 -p 8000:8000 \\
-    -v /path/to/$(basename "${DST%/}"):/model:ro \\
-    --entrypoint vllm <image> serve /model \\
-    --served-model-name dsv4-reap \\
-    --gpu-memory-utilization 0.75 \\
-    --max-model-len 65536 --max-num-seqs 16 \\
-    --kv-cache-dtype fp8
-\`\`\`
-
 The image is stock vLLM with one package moved forward:
 
 \`\`\`dockerfile
@@ -155,8 +144,19 @@ RUN pip install --no-cache-dir flashinfer-python==0.6.14
 ENV FLASHINFER_DISABLE_VERSION_CHECK=1
 \`\`\`
 
-Four things in that command are not optional, and each cost something to find
-out:
+\`\`\`bash
+docker build -t vllm-dsv4:fi0614 .
+
+docker run -d --name dsv4-reap --gpus all --ipc=host -p 8000:8000 \\
+    -v /path/to/$(basename "${DST%/}"):/model:ro \\
+    --entrypoint vllm vllm-dsv4:fi0614 serve /model \\
+    --served-model-name dsv4-reap \\
+    --gpu-memory-utilization 0.75 \\
+    --max-model-len 65536 --max-num-seqs 16 \\
+    --kv-cache-dtype fp8
+\`\`\`
+
+Four things there are not optional, and each cost something to find out:
 
 * **\`--kv-cache-dtype fp8\`** — DeepSeek-V4's sparse-MLA kernel rejects anything
   else.
@@ -167,11 +167,11 @@ out:
   to 0.1-2.2 tokens/s with only 4-6% of the KV cache in use, so the pool was
   never the constraint. Pointing a second client at it in that state hung the
   host hard enough to need a power cycle.
-* **\`FLASHINFER_DISABLE_VERSION_CHECK=1\`** together with an image carrying
-  \`flashinfer-python==0.6.14\`. vLLM 0.25.1 pins 0.6.13 while its own code passes
-  arguments that only exist in 0.6.14, so the stock image crashes on load;
-  flashinfer-cubin never shipped 0.6.14, which is why the check has to be off.
-  Later vLLM releases may not need any of this.
+* **The FlashInfer bump, and \`FLASHINFER_DISABLE_VERSION_CHECK=1\` with it** (the
+  Dockerfile sets both). vLLM 0.25.1 pins flashinfer 0.6.13 while its own code
+  passes arguments that only exist in 0.6.14, so the stock image crashes on
+  load; flashinfer-cubin never shipped 0.6.14, which is why the version check
+  then has to be off. Later vLLM releases may not need any of this.
 * **\`--entrypoint vllm\`** spelled out. The Dockerfile above inherits vLLM's own
   \`ENTRYPOINT ["vllm", "serve"]\` and does not need it, but an image built the
   quick way — \`docker commit\` of a container started with \`--entrypoint bash\` —
