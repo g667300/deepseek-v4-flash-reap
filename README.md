@@ -51,12 +51,12 @@ dequantize-requantize round trip and no GPU.
 In fairness to the reference implementation: this split was built in the belief
 that the reference path could not process this checkpoint at all. That was a
 misreading — as above, it is a conversion problem, and the size is handled by
-onloading one subgraph at a time. **The mistake paid off anyway.** Keeping the
-bytes left **the original checkpoint standing as a reference you can check the
-output against.**
+onloading one subgraph at a time. **The mistake paid off anyway: it is what
+caught a bit flip.** Keeping the bytes left **the original checkpoint standing
+as a reference you can check the output against.**
 Every surviving expert must still match it bit for bit, which is what
 `scripts/verify_against_source.py` tests — and on the non-ECC machine used here
-it caught a genuine bit flip that had reached the published model. A run that
+that found a single flipped bit which had reached the published model. A run that
 converts out of and back into the source format gives that up, because after a
 round trip the bytes are expected to differ and there is nothing left to compare.
 
