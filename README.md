@@ -21,18 +21,20 @@ modifier](https://arxiv.org/abs/2510.13999)) runs as one pass over a model
 loaded through transformers: it records routing while calibration data flows
 through, and prunes each MoE block in place as the pass reaches it.
 
-That path cannot read this checkpoint, which is **already quantized** in
-DeepSeek's own conventions:
+It cannot read this checkpoint as it stands. The tensors carry DeepSeek's native
+names (`layers.{L}.ffn.experts.{E}.w1.weight`, not `model.layers.*.mlp.*`), and
+the quantization is DeepSeek's own — FP4 (E2M1, 32-element blocks, E8M0 scales)
+for routed experts, FP8 (E4M3, 128x128 blocks) elsewhere — which
+compressed-tensors does not read.
 
-* Tensors carry DeepSeek's native names (`layers.{L}.ffn.experts.{E}.w1.weight`),
-  not the `model.layers.*.mlp.*` that transformers expects — this repo carries an
-  explicit rename map to build a layer at all.
-* The quantization is FP4 (E2M1, 32-element blocks, E8M0 scales) for routed
-  experts and FP8 (E4M3, 128x128 blocks) elsewhere. compressed-tensors does not
-  read that, so loading means dequantizing first, and saving back through the
-  normal path would re-encode weights that REAP never touched.
+**That is a conversion problem, not a wall.** Dequantize to BF16 under HF names,
+run the reference implementation, requantize on the way out, and you get a
+pruned model. Size is no obstacle either: llm-compressor onloads one subgraph at
+a time and can offload the rest to disk. What it costs is a **~570 GB
+intermediate** and a round trip that re-encodes every weight, including the ones
+REAP never touched.
 
-So the run is split in two:
+This repo takes the other option and splits the run in two:
 
 * **The scoring pass** (`reap_saliency_dsv4.py`, GPU) walks the model one layer
   at a time, dequantizing each layer just long enough to push calibration data
@@ -45,6 +47,18 @@ weights of the experts that survive.** Pruning is a slice of the expert list and
 of the matching router rows, nothing more. The surgery is therefore a file-level
 transform that preserves the original FP4/FP8 encoding exactly — no
 dequantize-requantize round trip and no GPU.
+
+In fairness to the reference implementation: this split was built in the belief
+that the reference path could not process this checkpoint at all. That was a
+misreading — as above, it is a conversion problem, and the size is handled by
+onloading one subgraph at a time. **The mistake paid off anyway.** Keeping the
+bytes left **the original checkpoint standing as a reference you can check the
+output against.**
+Every surviving expert must still match it bit for bit, which is what
+`scripts/verify_against_source.py` tests — and on the non-ECC machine used here
+it caught a genuine bit flip that had reached the published model. A run that
+converts out of and back into the source format gives that up, because after a
+round trip the bytes are expected to differ and there is nothing left to compare.
 
 Japanese: [README.jp.md](README.jp.md)
 
