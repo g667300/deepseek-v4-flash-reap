@@ -147,7 +147,16 @@ docker run -d --name dsv4-reap --gpus all --ipc=host \\
     --kv-cache-dtype fp8
 \`\`\`
 
-Four of those are not optional, and each cost something to find out:
+The image is stock vLLM with one package moved forward:
+
+\`\`\`dockerfile
+FROM vllm/vllm-openai:v0.25.1
+RUN pip install --no-cache-dir flashinfer-python==0.6.14
+ENV FLASHINFER_DISABLE_VERSION_CHECK=1
+\`\`\`
+
+Four things in that command are not optional, and each cost something to find
+out:
 
 * **\`--kv-cache-dtype fp8\`** — DeepSeek-V4's sparse-MLA kernel rejects anything
   else.
@@ -163,9 +172,11 @@ Four of those are not optional, and each cost something to find out:
   arguments that only exist in 0.6.14, so the stock image crashes on load;
   flashinfer-cubin never shipped 0.6.14, which is why the check has to be off.
   Later vLLM releases may not need any of this.
-* **\`--entrypoint vllm\`** spelled out. An image committed from a container that
-  was started with \`--entrypoint bash\` defaults to bash, and \`docker run IMAGE
-  serve /model\` then silently runs nothing.
+* **\`--entrypoint vllm\`** spelled out. The Dockerfile above inherits vLLM's own
+  \`ENTRYPOINT ["vllm", "serve"]\` and does not need it, but an image built the
+  quick way — \`docker commit\` of a container started with \`--entrypoint bash\` —
+  keeps bash as its entrypoint, and \`docker run IMAGE serve /model\` then
+  silently runs nothing. Spelling it out works either way.
 
 Long context is exercised up to 64K in the table below. 128K is untested on this
 checkpoint.
