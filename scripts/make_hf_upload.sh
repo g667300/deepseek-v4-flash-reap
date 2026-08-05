@@ -130,6 +130,46 @@ Three things are worth knowing before you use it:
 * **Hash-layer handling: \`${HASH}\`.** See \`reap_pruning.json\` for the exact
   surviving expert ids per layer.
 
+## Serving
+
+Sized for a 128 GB unified-memory host: ${TOTAL_GB} GB resident leaves room to
+serve, which the original does not. Measured on a DGX Spark (GB10, 121 GiB
+usable). Load takes about five minutes.
+
+\`\`\`bash
+docker run -d --name dsv4-reap --gpus all --ipc=host \\
+    -e FLASHINFER_DISABLE_VERSION_CHECK=1 -p 8000:8000 \\
+    -v /path/to/$(basename "${DST%/}"):/model:ro \\
+    --entrypoint vllm <image> serve /model \\
+    --served-model-name dsv4-reap \\
+    --gpu-memory-utilization 0.75 \\
+    --max-model-len 65536 --max-num-seqs 16 \\
+    --kv-cache-dtype fp8
+\`\`\`
+
+Four of those are not optional, and each cost something to find out:
+
+* **\`--kv-cache-dtype fp8\`** — DeepSeek-V4's sparse-MLA kernel rejects anything
+  else.
+* **\`--gpu-memory-utilization 0.75\`**, not vLLM's default 0.9. On unified memory
+  that fraction comes out of system RAM rather than a separate VRAM pool: 0.9 on
+  a 121 GiB machine reserves ~109 GiB and leaves the OS about 8 GiB. Long context
+  then collapses — measured at 32K with 16 concurrent requests, generation fell
+  to 0.1-2.2 tokens/s with only 4-6% of the KV cache in use, so the pool was
+  never the constraint. Pointing a second client at it in that state hung the
+  host hard enough to need a power cycle.
+* **\`FLASHINFER_DISABLE_VERSION_CHECK=1\`** together with an image carrying
+  \`flashinfer-python==0.6.14\`. vLLM 0.25.1 pins 0.6.13 while its own code passes
+  arguments that only exist in 0.6.14, so the stock image crashes on load;
+  flashinfer-cubin never shipped 0.6.14, which is why the check has to be off.
+  Later vLLM releases may not need any of this.
+* **\`--entrypoint vllm\`** spelled out. An image committed from a container that
+  was started with \`--entrypoint bash\` defaults to bash, and \`docker run IMAGE
+  serve /model\` then silently runs nothing.
+
+Long context is exercised up to 64K in the table below. 128K is untested on this
+checkpoint.
+
 ## Evaluation
 EOF
 
