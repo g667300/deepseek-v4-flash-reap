@@ -1,0 +1,37 @@
+# Local task definition for JCommonsenseQA (part of JGLUE).
+#
+# The Rakuten/JGLUE HF dataset relies on a loading script (JGLUE.py), which
+# datasets>=4 no longer executes, so the task reads the upstream raw JSON
+# directly instead. Fetch it first with scripts/fetch_eval_data.sh; paths below
+# are relative to the repository root, so run lm_eval from there.
+#
+# Source:
+#   https://raw.githubusercontent.com/yahoojapan/JGLUE/refs/tags/v1.2.0/datasets/jcommonsenseqa-v1.2/{train,valid}-v1.2.json
+#
+# The Japanese strings in `description` and `doc_to_text` are the benchmark's
+# own prompt format and must stay in Japanese.
+task: jcommonsenseqa_local
+dataset_path: json
+dataset_kwargs:
+  data_files:
+    train: eval_data/jcommonsenseqa/train-v1.2.json
+    validation: eval_data/jcommonsenseqa/valid-v1.2.json
+training_split: train
+validation_split: validation
+test_split: null
+fewshot_split: train
+num_fewshot: 3
+output_type: multiple_choice
+description: "以下は常識に関する多肢選択問題です。最も適切な回答を一つ選びなさい。\n\n"
+doc_to_text: "{{question.strip()}}\nA. {{choice0}}\nB. {{choice1}}\nC. {{choice2}}\nD. {{choice3}}\nE. {{choice4}}\n答え:"
+doc_to_choice: "{{[choice0, choice1, choice2, choice3, choice4]}}"
+doc_to_target: label
+metric_list:
+  - metric: acc
+    aggregation: mean
+    higher_is_better: true
+  - metric: acc_norm
+    aggregation: mean
+    higher_is_better: true
+metadata:
+  version: 1.0

@@ -1,0 +1,115 @@
+{
+  "_comment": [
+    "Held-out perplexity eval set. Mirrors mix.json's source composition so",
+    "perplexity is measured on the same domains REAP calibration targets",
+    "(ja/en chat+wiki, code), but must not overlap with what calibration",
+    "already consumed from the same streams.",
+    "",
+    "build_calibration.py only applies ds.shuffle(seed=...) to sources that",
+    "declare a shuffle_buffer (mix.json only sets one for the *-wiki sources;",
+    "the instruct/chat sources stream from the start of their split with no",
+    "shuffle at all, so re-reading them would return the exact same leading",
+    "documents calibration already used). Every source here gets its own",
+    "shuffle_buffer + a seed distinct from mix.json's (0), so all seven draw",
+    "from a different, non-overlapping slice of each source.",
+    "",
+    "num_samples is deliberately smaller than calibration's 512 -- perplexity",
+    "just needs a stable mean over held-out tokens, not full REAP saliency",
+    "coverage.",
+    "",
+    "DeepSeek-V4 variant: same sources, seeds and sizes as ppl-holdout.json so",
+    "the two models' perplexity is measured on the same documents; only the",
+    "prompt encoding differs (DeepSeek ships no chat_template, so",
+    "encoding/encoding_dsv4.py renders these -- thinking_mode 'chat' matches",
+    "how calibration was built in calib/mix-dsv4.json)."
+  ],
+  "chat_template_kwargs": {
+    "thinking_mode": "chat"
+  },
+  "seq_len": 2048,
+  "num_samples": 128,
+  "seed": 999,
+  "sources": [
+    {
+      "name": "ja-instruct",
+      "lang": "ja",
+      "weight": 0.16,
+      "dataset": "kunishou/databricks-dolly-15k-ja",
+      "split": "train",
+      "format": "instruction",
+      "shuffle_buffer": 5000,
+      "seed": 999
+    },
+    {
+      "name": "ja-wiki",
+      "lang": "ja",
+      "weight": 0.19,
+      "dataset": "wikimedia/wikipedia",
+      "config": "20231101.ja",
+      "split": "train",
+      "format": "text",
+      "field": "text",
+      "shuffle_buffer": 5000,
+      "seed": 999
+    },
+    {
+      "name": "en-chat",
+      "lang": "en",
+      "weight": 0.2,
+      "dataset": "HuggingFaceH4/ultrachat_200k",
+      "split": "train_sft",
+      "format": "messages",
+      "field": "messages",
+      "shuffle_buffer": 5000,
+      "seed": 999
+    },
+    {
+      "name": "en-wiki",
+      "lang": "en",
+      "weight": 0.15,
+      "dataset": "wikimedia/wikipedia",
+      "config": "20231101.en",
+      "split": "train",
+      "format": "text",
+      "field": "text",
+      "shuffle_buffer": 5000,
+      "seed": 999
+    },
+    {
+      "name": "code-instruct",
+      "lang": "code",
+      "weight": 0.14,
+      "dataset": "ise-uiuc/Magicoder-Evol-Instruct-110K",
+      "split": "train",
+      "format": "instruction",
+      "instruction_field": "instruction",
+      "output_field": "response",
+      "shuffle_buffer": 5000,
+      "seed": 999
+    },
+    {
+      "name": "code-feedback",
+      "lang": "code",
+      "weight": 0.12,
+      "dataset": "m-a-p/CodeFeedback-Filtered-Instruction",
+      "split": "train",
+      "format": "instruction",
+      "instruction_field": "query",
+      "output_field": "answer",
+      "shuffle_buffer": 5000,
+      "seed": 999
+    },
+    {
+      "name": "zh-wiki",
+      "lang": "zh",
+      "weight": 0.04,
+      "dataset": "wikimedia/wikipedia",
+      "config": "20231101.zh",
+      "split": "train",
+      "format": "text",
+      "field": "text",
+      "shuffle_buffer": 5000,
+      "seed": 999
+    }
+  ]
+}

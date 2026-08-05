@@ -1,0 +1,111 @@
+{
+  "_comment": [
+    "Calibration mixture for REAP on DeepSeek-V4-Flash. Weights are relative and",
+    "normalized, and are interpreted as a share of the sample count (so with",
+    "packing, roughly a share of tokens too). The mixture decides which experts",
+    "survive: an expert that never sees tokens it specializes in scores zero and",
+    "is pruned first.",
+    "",
+    "Same source list and weights as calib/mix.json so the two models' saliency",
+    "runs stay comparable. The small Chinese share is kept for the same reason as",
+    "there: DeepSeek is a Chinese-origin model, and experts handling shared",
+    "reasoning and grammar may have been co-trained on Chinese, so removing it",
+    "entirely risks pruning those along with the genuinely Chinese-specific ones.",
+    "On GLM-5.2 a zero-Chinese variant was tried and changed the retained sets",
+    "almost not at all (Jaccard 0.946), so this is a cheap safety margin rather",
+    "than a live hypothesis.",
+    "",
+    "Tokenization differs from GLM-5.2 (vocab 129,280, different tokenizer), so",
+    "this mix must be built against the DeepSeek checkpoint directory:",
+    "  build_calibration.py --mix calib/mix-dsv4.json \\",
+    "      --tokenizer models/DeepSeek-V4-Flash-0731 --out artifacts/calib-dsv4-512x2048.pt"
+  ],
+  "_chat_template_note": [
+    "DeepSeek-V4 ships no HF chat_template. Prompts are built by",
+    "encoding/encoding_dsv4.py:encode_messages, which the model profile loads",
+    "automatically; chat_template_kwargs below are that function's arguments.",
+    "",
+    "thinking_mode 'chat' emits '<|Assistant|></think>' -- the thinking block is",
+    "closed immediately and the model answers directly. None of the sources below",
+    "contain reasoning traces, so calibrating in 'thinking' mode would prompt for",
+    "a response shape the data does not have. If you intend to serve with",
+    "thinking enabled and want calibration to match, set thinking_mode to",
+    "'thinking' here and add sources that actually contain reasoning traces."
+  ],
+  "chat_template_kwargs": { "thinking_mode": "chat" },
+  "seq_len": 2048,
+  "num_samples": 512,
+  "seed": 0,
+  "sources": [
+    {
+      "name": "ja-instruct",
+      "lang": "ja",
+      "weight": 0.16,
+      "dataset": "kunishou/databricks-dolly-15k-ja",
+      "split": "train",
+      "format": "instruction"
+    },
+    {
+      "name": "ja-wiki",
+      "lang": "ja",
+      "weight": 0.19,
+      "dataset": "wikimedia/wikipedia",
+      "config": "20231101.ja",
+      "split": "train",
+      "format": "text",
+      "field": "text",
+      "shuffle_buffer": 2000
+    },
+    {
+      "name": "en-chat",
+      "lang": "en",
+      "weight": 0.20,
+      "dataset": "HuggingFaceH4/ultrachat_200k",
+      "split": "train_sft",
+      "format": "messages",
+      "field": "messages"
+    },
+    {
+      "name": "en-wiki",
+      "lang": "en",
+      "weight": 0.15,
+      "dataset": "wikimedia/wikipedia",
+      "config": "20231101.en",
+      "split": "train",
+      "format": "text",
+      "field": "text",
+      "shuffle_buffer": 2000
+    },
+    {
+      "name": "code-instruct",
+      "lang": "code",
+      "weight": 0.14,
+      "dataset": "ise-uiuc/Magicoder-Evol-Instruct-110K",
+      "split": "train",
+      "format": "instruction",
+      "instruction_field": "instruction",
+      "output_field": "response"
+    },
+    {
+      "name": "code-feedback",
+      "lang": "code",
+      "weight": 0.12,
+      "dataset": "m-a-p/CodeFeedback-Filtered-Instruction",
+      "split": "train",
+      "format": "instruction",
+      "instruction_field": "query",
+      "output_field": "answer"
+    },
+    {
+      "name": "zh-wiki",
+      "lang": "zh",
+      "weight": 0.04,
+      "dataset": "wikimedia/wikipedia",
+      "config": "20231101.zh",
+      "split": "train",
+      "format": "text",
+      "field": "text",
+      "shuffle_buffer": 2000
+    }
+  ]
+}

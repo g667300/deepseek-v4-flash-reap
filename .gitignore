@@ -1,0 +1,14 @@
+# Python environment
+.venv/
+__pycache__/
+*.pyc
+
+# Model weights, checkpoints and outputs (tens of GB; not tracked)
+models/
+artifacts/
+
+# Benchmark data fetched by scripts/fetch_eval_data.sh
+eval_data/
+
+# Logs
+*.log
